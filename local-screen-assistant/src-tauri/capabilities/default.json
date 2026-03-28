@@ -1,0 +1,10 @@
+{
+  "identifier": "default",
+  "description": "Default capability for the application windows",
+  "permissions": [
+    "core:default",
+    "global-shortcut:allow-register",
+    "global-shortcut:allow-unregister",
+    "global-shortcut:allow-unregister-all"
+  ]
+}
