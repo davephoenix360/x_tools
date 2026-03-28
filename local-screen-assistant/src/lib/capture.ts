@@ -1,4 +1,4 @@
-import { convertFileSrc, invoke } from "@tauri-apps/api/core";
+import { invoke } from "@tauri-apps/api/core";
 
 export const CAPTURE_RESULT_EVENT = "capture/result";
 export const CAPTURE_CANCELLED_EVENT = "capture/cancelled";
@@ -44,6 +44,10 @@ export async function completeCapture(
   return invoke<CaptureResult>("complete_capture", { request });
 }
 
-export function toCapturePreviewSrc(imagePath: string): string {
-  return convertFileSrc(imagePath);
+export async function getLatestCapture(): Promise<CaptureResult | null> {
+  return invoke<CaptureResult | null>("get_latest_capture");
+}
+
+export async function loadCapturePreview(imagePath: string): Promise<string> {
+  return invoke<string>("load_capture_preview", { imagePath });
 }

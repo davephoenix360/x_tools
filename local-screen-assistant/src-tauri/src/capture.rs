@@ -5,6 +5,7 @@ use std::{
   time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
+use base64::{engine::general_purpose::STANDARD, Engine as _};
 use serde::{Deserialize, Serialize};
 use tauri::{
   AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder,
@@ -26,6 +27,7 @@ pub const CAPTURE_ERROR_EVENT: &str = "capture/error";
 #[derive(Default)]
 pub struct CaptureState {
   session: Mutex<CaptureSession>,
+  last_capture: Mutex<Option<CaptureResultPayload>>,
 }
 
 #[derive(Default)]
@@ -215,6 +217,7 @@ pub fn complete_capture(
 
   match capture_result {
     Ok(result) => {
+      store_latest_capture(app, result.clone());
       tray::show_main_window(app);
       let _ = app.emit(CAPTURE_RESULT_EVENT, &result);
       Ok(result)
@@ -234,6 +237,22 @@ pub fn report_capture_error(app: &AppHandle, message: &str) {
       message: message.to_string(),
     },
   );
+}
+
+pub fn latest_capture(app: &AppHandle) -> Option<CaptureResultPayload> {
+  let state = app.state::<CaptureState>();
+  let latest_capture = state.last_capture.lock().unwrap().clone();
+  latest_capture
+}
+
+pub fn load_capture_preview(image_path: &str) -> Result<String, String> {
+  let image_bytes = fs::read(image_path)
+    .map_err(|error| format!("Unable to read the captured image for preview: {error}"))?;
+
+  Ok(format!(
+    "data:image/png;base64,{}",
+    STANDARD.encode(image_bytes)
+  ))
 }
 
 fn load_overlay_monitors() -> Result<Vec<OverlayMonitor>, String> {
@@ -399,4 +418,10 @@ fn reset_session(app: &AppHandle) {
   session.active = false;
   session.overlay_monitors.clear();
   session.restore_main_window = false;
+}
+
+fn store_latest_capture(app: &AppHandle, capture_result: CaptureResultPayload) {
+  let state = app.state::<CaptureState>();
+  let mut last_capture = state.last_capture.lock().unwrap();
+  *last_capture = Some(capture_result);
 }

@@ -27,12 +27,12 @@ export default function HomePage({
   return (
     <div className="page">
       <section className="panel hero-panel">
-        <p className="eyebrow">Milestone 1</p>
+        <p className="eyebrow">Milestone 2</p>
         <h1>Local Screen Assistant</h1>
         <p className="muted">
           The desktop shell now supports a global hotkey, fullscreen region
-          selection, temporary image capture, and a placeholder result view for
-          the next OCR milestone.
+          selection, temporary image capture, and OCR extraction review without
+          stepping into retrieval or answer generation yet.
         </p>
 
         <div className="panel-actions top-gap">
@@ -79,6 +79,10 @@ export default function HomePage({
             <div>
               <dt>Capture flow</dt>
               <dd>Region selection saves a temp PNG</dd>
+            </div>
+            <div>
+              <dt>OCR</dt>
+              <dd>Manual extraction from the result view</dd>
             </div>
           </dl>
         </section>

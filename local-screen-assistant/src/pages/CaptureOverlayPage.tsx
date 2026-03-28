@@ -14,8 +14,10 @@ export default function CaptureOverlayPage() {
   const [localError, setLocalError] = useState<string | null>(null);
 
   useEffect(() => {
+    document.documentElement.classList.add("overlay-html");
     document.body.classList.add("overlay-body");
     return () => {
+      document.documentElement.classList.remove("overlay-html");
       document.body.classList.remove("overlay-body");
     };
   }, []);

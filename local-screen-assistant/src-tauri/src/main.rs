@@ -3,6 +3,7 @@
 mod commands;
 mod capture;
 mod hotkeys;
+mod ocr;
 mod settings;
 mod tray;
 
@@ -26,6 +27,9 @@ fn main() {
       commands::capture_commands::start_capture,
       commands::capture_commands::cancel_capture,
       commands::capture_commands::complete_capture,
+      commands::capture_commands::get_latest_capture,
+      commands::capture_commands::load_capture_preview,
+      commands::ocr_commands::run_ocr,
       commands::settings_commands::get_settings,
       commands::settings_commands::save_settings
     ])

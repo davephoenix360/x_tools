@@ -282,15 +282,52 @@ select {
   height: auto;
 }
 
+.preview-fallback {
+  min-height: 260px;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  text-align: center;
+}
+
+.preview-fallback p {
+  margin: 0;
+}
+
 .result-meta {
   align-content: start;
+}
+
+.ocr-meta {
+  margin-bottom: 1rem;
 }
 
 .path-value {
   word-break: break-word;
 }
 
+.ocr-output {
+  margin: 0;
+  padding: 1rem;
+  border-radius: 16px;
+  background: rgba(18, 32, 51, 0.05);
+  border: 1px solid rgba(18, 32, 51, 0.08);
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: "Consolas", "SFMono-Regular", monospace;
+  font-size: 0.94rem;
+  line-height: 1.6;
+}
+
 body.overlay-body {
+  background: transparent;
+}
+
+html.overlay-html {
+  background: transparent !important;
+}
+
+html.overlay-html body {
   background: transparent;
 }
 

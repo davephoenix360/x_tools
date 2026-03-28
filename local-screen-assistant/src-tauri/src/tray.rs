@@ -45,16 +45,23 @@ pub fn create_tray(app: &App) -> tauri::Result<()> {
 }
 
 pub fn show_main_window(app: &AppHandle) {
-  if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
-    let _ = window.show();
-    let _ = window.unminimize();
-    let _ = window.set_focus();
-  }
+  let app_handle = app.clone();
+
+  let _ = app.run_on_main_thread(move || {
+    if let Some(window) = app_handle.get_webview_window(MAIN_WINDOW_LABEL) {
+      let _ = window.show();
+      let _ = window.unminimize();
+      let _ = window.set_focus();
+    }
+  });
 }
 
 pub fn hide_main_window(app: &AppHandle) {
-  if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
-    let _ = window.hide();
-  }
-}
+  let app_handle = app.clone();
 
+  let _ = app.run_on_main_thread(move || {
+    if let Some(window) = app_handle.get_webview_window(MAIN_WINDOW_LABEL) {
+      let _ = window.hide();
+    }
+  });
+}

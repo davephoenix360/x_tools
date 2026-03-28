@@ -4,10 +4,12 @@ import {
   CAPTURE_CANCELLED_EVENT,
   CAPTURE_ERROR_EVENT,
   CAPTURE_RESULT_EVENT,
+  getLatestCapture,
   startCapture,
   type CaptureMessage,
   type CaptureResult,
 } from "./lib/capture";
+import { runOcr, type OcrResult } from "./lib/ocr";
 import { defaultSettings, getSettings, saveSettings, type Settings } from "./lib/settings";
 import CaptureOverlayPage from "./pages/CaptureOverlayPage";
 import CaptureResultPage from "./pages/CaptureResultPage";
@@ -30,9 +32,11 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isStartingCapture, setIsStartingCapture] = useState(false);
+  const [isRunningOcr, setIsRunningOcr] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [latestCapture, setLatestCapture] = useState<CaptureResult | null>(null);
+  const [ocrResult, setOcrResult] = useState<OcrResult | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -40,9 +44,14 @@ export default function App() {
     const load = async () => {
       try {
         const persistedSettings = await getSettings();
+        const latestCaptureResult = await getLatestCapture();
 
         if (!cancelled) {
           setSettings(persistedSettings);
+
+          if (latestCaptureResult) {
+            setLatestCapture(latestCaptureResult);
+          }
         }
       } catch (loadError) {
         if (!cancelled) {
@@ -68,6 +77,35 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const syncLatestCapture = async () => {
+      try {
+        const latestCaptureResult = await getLatestCapture();
+
+        if (
+          latestCaptureResult &&
+          latestCaptureResult.imagePath !== latestCapture?.imagePath
+        ) {
+          setLatestCapture(latestCaptureResult);
+          setOcrResult(null);
+          setRoute("capture-result");
+        }
+      } catch {
+        // Ignore fallback sync errors and keep the event-driven path primary.
+      }
+    };
+
+    const handleFocus = () => {
+      void syncLatestCapture();
+    };
+
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [latestCapture?.imagePath]);
+
+  useEffect(() => {
     let unlistenResult: (() => void) | null = null;
     let unlistenCancelled: (() => void) | null = null;
     let unlistenError: (() => void) | null = null;
@@ -75,10 +113,12 @@ export default function App() {
     const attachListeners = async () => {
       unlistenResult = await listen<CaptureResult>(CAPTURE_RESULT_EVENT, (event) => {
         setLatestCapture(event.payload);
+        setOcrResult(null);
         setFeedback("Capture completed and stored in a temporary file.");
         setError(null);
         setRoute("capture-result");
         setIsStartingCapture(false);
+        setIsRunningOcr(false);
       });
 
       unlistenCancelled = await listen<CaptureMessage>(
@@ -88,6 +128,7 @@ export default function App() {
           setError(null);
           setRoute("home");
           setIsStartingCapture(false);
+          setIsRunningOcr(false);
         },
       );
 
@@ -96,6 +137,7 @@ export default function App() {
         setFeedback(null);
         setRoute("home");
         setIsStartingCapture(false);
+        setIsRunningOcr(false);
       });
     };
 
@@ -147,6 +189,62 @@ export default function App() {
     }
   };
 
+  const handleRunOcr = async (imagePath: string) => {
+    setIsRunningOcr(true);
+    setFeedback(null);
+    setError(null);
+
+    try {
+      const result = await runOcr(imagePath);
+      setOcrResult(result);
+
+      if (result.status === "succeeded") {
+        setFeedback("OCR completed.");
+      }
+    } catch (ocrError) {
+      const message =
+        ocrError instanceof Error
+          ? ocrError.message
+          : "Unable to run OCR on the captured image.";
+
+      setError(message);
+    } finally {
+      setIsRunningOcr(false);
+    }
+  };
+
+  const handleCopyExtractedText = async (text: string) => {
+    if (!text) {
+      return;
+    }
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        textArea.style.opacity = "0";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+      }
+
+      setFeedback("Extracted text copied to clipboard.");
+      setError(null);
+    } catch (copyError) {
+      const message =
+        copyError instanceof Error
+          ? copyError.message
+          : "Unable to copy the extracted text.";
+
+      setError(message);
+    }
+  };
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -154,8 +252,8 @@ export default function App() {
           <p className="eyebrow">Local Screen Assistant</p>
           <h1 className="sidebar-title">Desktop Shell</h1>
           <p className="muted">
-            Milestone 1 adds capture launch, region selection, and a placeholder
-            result state.
+            Milestone 2 adds OCR execution and extracted text review on top of
+            the capture flow.
           </p>
         </div>
 
@@ -201,10 +299,14 @@ export default function App() {
         ) : route === "capture-result" && latestCapture ? (
           <CaptureResultPage
             captureResult={latestCapture}
+            ocrResult={ocrResult && ocrResult.imagePath === latestCapture.imagePath ? ocrResult : null}
+            isRunningOcr={isRunningOcr}
             notice={feedback}
             error={error}
             onBackHome={() => setRoute("home")}
             onStartCapture={handleStartCapture}
+            onRunOcr={handleRunOcr}
+            onCopyExtractedText={handleCopyExtractedText}
           />
         ) : (
           <SettingsPage
