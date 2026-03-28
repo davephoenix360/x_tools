@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import {
   CAPTURE_CANCELLED_EVENT,
@@ -37,6 +37,50 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [latestCapture, setLatestCapture] = useState<CaptureResult | null>(null);
   const [ocrResult, setOcrResult] = useState<OcrResult | null>(null);
+  const ocrRequestIdRef = useRef(0);
+
+  const runOcrForCapture = async (imagePath: string, automatic = false) => {
+    const requestId = ocrRequestIdRef.current + 1;
+    ocrRequestIdRef.current = requestId;
+
+    setIsRunningOcr(true);
+    setError(null);
+    setFeedback(
+      automatic ? "Capture completed. Running OCR automatically..." : null,
+    );
+
+    try {
+      const result = await runOcr(imagePath);
+
+      if (ocrRequestIdRef.current !== requestId) {
+        return;
+      }
+
+      setOcrResult(result);
+
+      if (result.status === "succeeded") {
+        setFeedback("OCR completed.");
+      } else if (automatic) {
+        setFeedback("Capture completed. OCR finished with an error.");
+      }
+    } catch (ocrError) {
+      if (ocrRequestIdRef.current !== requestId) {
+        return;
+      }
+
+      const message =
+        ocrError instanceof Error
+          ? ocrError.message
+          : "Unable to run OCR on the captured image.";
+
+      setError(message);
+      setFeedback(null);
+    } finally {
+      if (ocrRequestIdRef.current === requestId) {
+        setIsRunningOcr(false);
+      }
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -87,7 +131,10 @@ export default function App() {
         ) {
           setLatestCapture(latestCaptureResult);
           setOcrResult(null);
+          setFeedback("Capture completed. Running OCR automatically...");
+          setError(null);
           setRoute("capture-result");
+          void runOcrForCapture(latestCaptureResult.imagePath, true);
         }
       } catch {
         // Ignore fallback sync errors and keep the event-driven path primary.
@@ -114,16 +161,16 @@ export default function App() {
       unlistenResult = await listen<CaptureResult>(CAPTURE_RESULT_EVENT, (event) => {
         setLatestCapture(event.payload);
         setOcrResult(null);
-        setFeedback("Capture completed and stored in a temporary file.");
         setError(null);
         setRoute("capture-result");
         setIsStartingCapture(false);
-        setIsRunningOcr(false);
+        void runOcrForCapture(event.payload.imagePath, true);
       });
 
       unlistenCancelled = await listen<CaptureMessage>(
         CAPTURE_CANCELLED_EVENT,
         (event) => {
+          ocrRequestIdRef.current += 1;
           setFeedback(event.payload.message);
           setError(null);
           setRoute("home");
@@ -133,6 +180,7 @@ export default function App() {
       );
 
       unlistenError = await listen<CaptureMessage>(CAPTURE_ERROR_EVENT, (event) => {
+        ocrRequestIdRef.current += 1;
         setError(event.payload.message);
         setFeedback(null);
         setRoute("home");
@@ -190,27 +238,7 @@ export default function App() {
   };
 
   const handleRunOcr = async (imagePath: string) => {
-    setIsRunningOcr(true);
-    setFeedback(null);
-    setError(null);
-
-    try {
-      const result = await runOcr(imagePath);
-      setOcrResult(result);
-
-      if (result.status === "succeeded") {
-        setFeedback("OCR completed.");
-      }
-    } catch (ocrError) {
-      const message =
-        ocrError instanceof Error
-          ? ocrError.message
-          : "Unable to run OCR on the captured image.";
-
-      setError(message);
-    } finally {
-      setIsRunningOcr(false);
-    }
+    await runOcrForCapture(imagePath);
   };
 
   const handleCopyExtractedText = async (text: string) => {

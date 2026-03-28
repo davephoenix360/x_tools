@@ -82,7 +82,7 @@ export default function HomePage({
             </div>
             <div>
               <dt>OCR</dt>
-              <dd>Manual extraction from the result view</dd>
+              <dd>Runs automatically after each new capture</dd>
             </div>
           </dl>
         </section>

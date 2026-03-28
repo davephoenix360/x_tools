@@ -72,8 +72,8 @@ export default function CaptureResultPage({
             <p className="eyebrow">Capture Result</p>
             <h1>Capture succeeded</h1>
             <p className="muted">
-              Milestone 2 keeps OCR separate from capture and runs text
-              extraction against the saved image on demand.
+              Milestone 2 keeps OCR separate from capture and now runs text
+              extraction automatically after each saved image.
             </p>
           </div>
 
@@ -136,7 +136,8 @@ export default function CaptureResultPage({
             <h2>Extracted Text</h2>
             <p className="muted">
               The OCR engine is selected from Settings and runs entirely on the
-              Rust side.
+              Rust side. Use retry if you want to run extraction again on the
+              same image.
             </p>
           </div>
 
@@ -147,7 +148,11 @@ export default function CaptureResultPage({
               onClick={() => void onRunOcr(captureResult.imagePath)}
               disabled={isRunningOcr}
             >
-              {isRunningOcr ? "Running OCR..." : "Run OCR"}
+              {isRunningOcr
+                ? "Running OCR..."
+                : ocrResult
+                  ? "Retry OCR"
+                  : "Run OCR"}
             </button>
             <button
               className="secondary-button"
@@ -180,7 +185,7 @@ export default function CaptureResultPage({
             <p>
               {ocrResult?.status === "failed"
                 ? "OCR did not return any text."
-                : "Run OCR to extract text from this captured image."}
+                : "OCR starts automatically after capture. Use retry if you want to run it again."}
             </p>
           </div>
         )}
